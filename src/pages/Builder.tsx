@@ -120,8 +120,11 @@ export default function Builder() {
         const path = `${user.id}/${Date.now()}-${file.name}`;
         const { error } = await supabase.storage.from("wallpapers").upload(path, file);
         if (error) throw error;
-        const { data } = supabase.storage.from("wallpapers").getPublicUrl(path);
-        setWallpaperUrls((prev) => [...prev, data.publicUrl]);
+        const { data: signedUrlData, error: signedUrlError } = await supabase.storage
+          .from("wallpapers")
+          .createSignedUrl(path, 60 * 60); // 1 hour expiry
+        if (signedUrlError || !signedUrlData?.signedUrl) throw signedUrlError || new Error("Failed to get signed URL");
+        setWallpaperUrls((prev) => [...prev, signedUrlData.signedUrl]);
       }
       toast.success("Wallpapers uploaded!");
     } catch (err: any) {
