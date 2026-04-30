@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
+import { generateBuildBundle, downloadBlob, bundleFilename } from "@/lib/isoBuilder";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -142,7 +143,8 @@ export default function Builder() {
     if (!user) return;
     setSaving(true);
     try {
-      const { error } = await supabase.from("distro_configs").insert({
+      // Persist the config (best-effort; don't block download if it fails)
+      const { error: dbError } = await supabase.from("distro_configs").insert({
         user_id: user.id,
         name: distroName,
         desktop_environment: de,
@@ -150,14 +152,28 @@ export default function Builder() {
         wallpaper_urls: wallpaperUrls,
         design_description: designDesc,
         theme_style: themeStyle,
-        status: "building",
+        status: "exported",
       });
-      if (error) throw error;
-      toast.success("Build queued! Your ISO will be ready soon.", {
-        description: "In a production environment, this would trigger an ISO build pipeline.",
+      if (dbError) console.warn("Save failed:", dbError.message);
+
+      toast.info("Generating build bundle...", { description: "Packaging archiso profile + wallpapers" });
+
+      const blob = await generateBuildBundle({
+        distroName,
+        desktopEnvironment: de,
+        selectedApps,
+        wallpaperUrls,
+        designDescription: designDesc,
+        themeStyle,
+      });
+
+      downloadBlob(blob, bundleFilename(distroName));
+
+      toast.success("Build bundle downloaded!", {
+        description: "Unzip it on Arch Linux and run: sudo ./build.sh",
       });
     } catch (err: any) {
-      toast.error(err.message || "Failed to save configuration");
+      toast.error(err.message || "Failed to generate bundle");
     } finally {
       setSaving(false);
     }
@@ -375,6 +391,29 @@ export default function Builder() {
                   <p><span className="text-primary">theme:</span> {themeStyle}</p>
                   {designDesc && <p><span className="text-primary">design:</span> "{designDesc.slice(0, 80)}..."</p>}
                 </div>
+
+                <div className="rounded-xl border border-primary/30 bg-primary/5 p-5 text-left text-sm space-y-2">
+                  <p className="font-semibold text-foreground">📦 What you'll download</p>
+                  <p className="text-muted-foreground">
+                    A <code className="text-primary">.zip</code> bundle containing a complete{" "}
+                    <code className="text-primary">archiso</code> profile, your wallpapers, and a{" "}
+                    <code className="text-primary">build.sh</code> script.
+                  </p>
+                  <p className="font-semibold text-foreground pt-2">🛠 To produce the actual .iso</p>
+                  <p className="text-muted-foreground">On any Arch Linux machine (or VM/container):</p>
+                  <pre className="bg-background/60 rounded p-2 text-xs overflow-x-auto">
+{`unzip ${distroName.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-build.zip
+cd ${distroName.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-build
+sudo pacman -S archiso
+sudo ./build.sh
+# → ISO appears in ./out/`}
+                  </pre>
+                  <p className="text-xs text-muted-foreground">
+                    Browser sandboxes can't run <code>mkarchiso</code> (needs root + loop devices),
+                    so the heavy lifting happens on your machine — but every config decision is baked in.
+                  </p>
+                </div>
+
                 <Button
                   size="lg"
                   className="bg-primary text-primary-foreground hover:bg-primary/90 glow-box"
@@ -382,11 +421,8 @@ export default function Builder() {
                   disabled={saving}
                 >
                   <Download className="mr-2 h-5 w-5" />
-                  {saving ? "Queuing Build..." : "Build & Export .ISO"}
+                  {saving ? "Generating Bundle..." : "Download Build Bundle"}
                 </Button>
-                <p className="text-xs text-muted-foreground">
-                  Your configuration will be saved and the build process will begin.
-                </p>
               </div>
             )}
           </motion.div>
