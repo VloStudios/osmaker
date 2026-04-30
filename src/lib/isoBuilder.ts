@@ -9,32 +9,44 @@ export interface DistroBuildConfig {
   themeStyle: string;
 }
 
-// Map our DE ids -> archiso package list for that DE
+/**
+ * Debian live-build based ISO builder.
+ *
+ * Produces a bundle of `live-build` config files + a `build.sh` wrapper.
+ * Runs on any Debian / Ubuntu / Debian-derivative host with `live-build` installed.
+ *
+ * Output ISO is a hybrid (BIOS + UEFI) bootable Debian live image preloaded
+ * with the chosen desktop environment, apps, wallpapers, and branding.
+ */
+
+// DE -> Debian package list
 const DE_PACKAGES: Record<string, string[]> = {
-  gnome: ["gnome", "gnome-extra", "gdm"],
-  kde: ["plasma-meta", "kde-applications-meta", "sddm"],
-  xfce: ["xfce4", "xfce4-goodies", "lightdm", "lightdm-gtk-greeter"],
-  i3wm: ["i3-wm", "i3status", "i3lock", "dmenu", "lightdm", "lightdm-gtk-greeter"],
-  cinnamon: ["cinnamon", "cinnamon-translations", "lightdm", "lightdm-gtk-greeter"],
+  gnome: ["task-gnome-desktop", "gdm3"],
+  kde: ["task-kde-desktop", "sddm"],
+  xfce: ["task-xfce-desktop", "lightdm", "lightdm-gtk-greeter"],
+  i3wm: ["i3", "i3status", "i3lock", "dmenu", "suckless-tools", "lightdm", "lightdm-gtk-greeter", "xserver-xorg", "xinit"],
+  cinnamon: ["task-cinnamon-desktop", "lightdm", "lightdm-gtk-greeter"],
+  mate: ["task-mate-desktop", "lightdm", "lightdm-gtk-greeter"],
+  lxqt: ["task-lxqt-desktop", "sddm"],
 };
 
-// Map our app ids -> arch package names
+// App id -> Debian apt package(s)
 const APP_PACKAGES: Record<string, string> = {
-  firefox: "firefox",
+  firefox: "firefox-esr",
   chromium: "chromium",
-  brave: "brave-bin",
-  vscode: "code",
+  brave: "", // not in Debian repos, handled via post-install hook
+  vscode: "", // not in Debian repos, handled via post-install hook
   vim: "vim",
   git: "git",
-  docker: "docker",
+  docker: "docker.io docker-compose",
   nodejs: "nodejs npm",
-  python3: "python python-pip",
+  python3: "python3 python3-pip python3-venv",
   vlc: "vlc",
   gimp: "gimp",
   obs: "obs-studio",
   audacity: "audacity",
   ufw: "ufw",
-  wireshark: "wireshark-qt",
+  wireshark: "wireshark",
   nmap: "nmap",
   keepassxc: "keepassxc",
   htop: "htop",
@@ -46,56 +58,119 @@ const APP_PACKAGES: Record<string, string> = {
 const safeSlug = (s: string) =>
   s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40) || "custom-distro";
 
-function buildPackagesFile(cfg: DistroBuildConfig): string {
+function packageList(cfg: DistroBuildConfig): string[] {
   const base = [
-    "base", "base-devel", "linux", "linux-firmware",
-    "networkmanager", "sudo", "nano", "bash-completion",
-    "archiso", "syslinux",
+    "linux-image-amd64",
+    "live-boot",
+    "systemd-sysv",
+    "network-manager",
+    "sudo",
+    "nano",
+    "bash-completion",
+    "ca-certificates",
+    "locales",
+    "console-setup",
+    "keyboard-configuration",
+    "firmware-linux-free",
+    "task-laptop",
   ];
   const de = DE_PACKAGES[cfg.desktopEnvironment] ?? DE_PACKAGES.xfce;
-  const apps = cfg.selectedApps.flatMap((id) => (APP_PACKAGES[id] ?? "").split(/\s+/)).filter(Boolean);
-  const all = Array.from(new Set([...base, ...de, ...apps])).sort();
-  return all.join("\n") + "\n";
+  const apps = cfg.selectedApps
+    .flatMap((id) => (APP_PACKAGES[id] ?? "").split(/\s+/))
+    .filter(Boolean);
+  return Array.from(new Set([...base, ...de, ...apps])).sort();
 }
 
-function buildProfileDef(cfg: DistroBuildConfig): string {
+function buildPackagesListFile(cfg: DistroBuildConfig): string {
+  // live-build picks up files in config/package-lists/*.list.chroot
+  return packageList(cfg).join("\n") + "\n";
+}
+
+function buildAutoConfig(cfg: DistroBuildConfig): string {
   const slug = safeSlug(cfg.distroName);
-  return `iso_name="${slug}"
-iso_label="${slug.toUpperCase().replace(/-/g, "_")}_$(date +%Y%m)"
-iso_publisher="${cfg.distroName}"
-iso_application="${cfg.distroName} Live/Install Image"
-iso_version="$(date +%Y.%m.%d)"
-install_dir="arch"
-buildmodes=('iso')
-bootmodes=('bios.syslinux.mbr' 'bios.syslinux.eltorito' 'uefi-x64.systemd-boot.esp' 'uefi-x64.systemd-boot.eltorito')
-arch="x86_64"
-pacman_conf="pacman.conf"
-airootfs_image_type="squashfs"
-airootfs_image_tool_options=('-comp' 'xz' '-Xbcj' 'x86' '-b' '1M' '-Xdict-size' '1M')
-file_permissions=(
-  ["/etc/shadow"]="0:0:400"
-  ["/root"]="0:0:750"
-  ["/usr/local/bin/choose-mirror"]="0:0:755"
-)
+  // config/auto/config — runs `lb config` with our desired flags
+  return `#!/bin/sh
+set -e
+
+lb config noauto \\
+  --mode debian \\
+  --distribution bookworm \\
+  --architectures amd64 \\
+  --binary-images iso-hybrid \\
+  --archive-areas "main contrib non-free non-free-firmware" \\
+  --apt-indices false \\
+  --apt-recommends true \\
+  --debian-installer false \\
+  --bootloaders "syslinux,grub-efi" \\
+  --iso-application "${cfg.distroName}" \\
+  --iso-publisher "${cfg.distroName} (built with Lovable DistroForge)" \\
+  --iso-volume "${slug.toUpperCase().replace(/-/g, "_")}" \\
+  --memtest none \\
+  "\${@}"
 `;
 }
 
-function buildPacmanConf(): string {
-  return `[options]
-HoldPkg = pacman glibc
-Architecture = auto
-SigLevel = Required DatabaseOptional
-LocalFileSigLevel = Optional
-ParallelDownloads = 5
+function buildHookCustomize(cfg: DistroBuildConfig): string {
+  const slug = safeSlug(cfg.distroName);
+  const wantsBrave = cfg.selectedApps.includes("brave");
+  const wantsVscode = cfg.selectedApps.includes("vscode");
 
-[core]
-Include = /etc/pacman.d/mirrorlist
+  let extras = "";
+  if (wantsBrave) {
+    extras += `
+# --- Brave browser (third-party repo) ---
+apt-get install -y curl gpg apt-transport-https
+curl -fsSLo /usr/share/keyrings/brave-browser-archive-keyring.gpg https://brave-browser-apt-release.s3.brave.com/brave-browser-archive-keyring.gpg
+echo "deb [signed-by=/usr/share/keyrings/brave-browser-archive-keyring.gpg] https://brave-browser-apt-release.s3.brave.com/ stable main" > /etc/apt/sources.list.d/brave-browser-release.list
+apt-get update
+apt-get install -y brave-browser || echo "WARN: brave install failed"
+`;
+  }
+  if (wantsVscode) {
+    extras += `
+# --- VS Code (Microsoft repo) ---
+apt-get install -y wget gpg apt-transport-https
+wget -qO- https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > /usr/share/keyrings/packages.microsoft.gpg
+echo "deb [arch=amd64 signed-by=/usr/share/keyrings/packages.microsoft.gpg] https://packages.microsoft.com/repos/code stable main" > /etc/apt/sources.list.d/vscode.list
+apt-get update
+apt-get install -y code || echo "WARN: vscode install failed"
+`;
+  }
 
-[extra]
-Include = /etc/pacman.d/mirrorlist
+  // Display manager autostart based on DE
+  let dm = "lightdm";
+  if (cfg.desktopEnvironment === "gnome") dm = "gdm3";
+  else if (cfg.desktopEnvironment === "kde" || cfg.desktopEnvironment === "lxqt") dm = "sddm";
 
-[multilib]
-Include = /etc/pacman.d/mirrorlist
+  return `#!/bin/sh
+# config/hooks/normal/9000-customize.hook.chroot
+# Runs inside the chroot during live-build's 'binary' stage.
+set -e
+
+echo "==> Customizing ${cfg.distroName}..."
+
+# /etc/os-release branding
+cat > /etc/os-release <<'EOF'
+NAME="${cfg.distroName}"
+PRETTY_NAME="${cfg.distroName}"
+ID=${slug}
+ID_LIKE=debian
+VERSION_ID="1"
+HOME_URL="https://lovable.dev"
+EOF
+
+# Hostname
+echo "${slug}" > /etc/hostname
+
+# Theme hint file
+echo "${cfg.themeStyle}" > /etc/distro-theme
+
+# Enable display manager + NetworkManager
+systemctl enable ${dm}.service || true
+systemctl enable NetworkManager.service || true
+systemctl set-default graphical.target || true
+${extras}
+echo "==> Customization complete."
 `;
 }
 
@@ -103,71 +178,110 @@ function buildBuildScript(cfg: DistroBuildConfig): string {
   const slug = safeSlug(cfg.distroName);
   return `#!/usr/bin/env bash
 # Build script for "${cfg.distroName}"
-# Generated by Lovable Distro Builder
+# Generated by Lovable DistroForge
 #
-# REQUIREMENTS:
-#   - Arch Linux host (or Arch in a VM/container) with root access
-#   - Packages: archiso, squashfs-tools, libisoburn
-#       sudo pacman -S archiso squashfs-tools libisoburn
+# Builds a Debian-based live ISO using live-build.
+#
+# REQUIREMENTS (Debian / Ubuntu / Mint / MX / Pop!_OS / etc.):
+#   sudo apt update
+#   sudo apt install -y live-build debootstrap squashfs-tools xorriso isolinux \\
+#                       syslinux-common syslinux-efi grub-pc-bin grub-efi-amd64-bin \\
+#                       mtools dosfstools
 #
 # USAGE:
-#   tar -xzf ${slug}-build.tar.gz   # (if you got this as a tar.gz)
+#   unzip ${slug}-build.zip
 #   cd ${slug}-build
 #   sudo ./build.sh
 #
-# Output: ./out/${slug}-YYYY.MM.DD-x86_64.iso
+# Output: ./live-image-amd64.hybrid.iso
 
 set -euo pipefail
 
 PROFILE_DIR="$(cd "$(dirname "$0")" && pwd)"
-WORK_DIR="\${PROFILE_DIR}/work"
-OUT_DIR="\${PROFILE_DIR}/out"
+cd "\${PROFILE_DIR}"
 
 if [ "\$EUID" -ne 0 ]; then
   echo "ERROR: run as root (sudo ./build.sh)"
   exit 1
 fi
 
-if ! command -v mkarchiso >/dev/null 2>&1; then
-  echo "ERROR: archiso is not installed. On Arch:"
-  echo "  sudo pacman -S archiso squashfs-tools libisoburn"
+if ! command -v lb >/dev/null 2>&1; then
+  echo "ERROR: live-build is not installed."
+  echo "  sudo apt install -y live-build debootstrap squashfs-tools xorriso \\\\"
+  echo "      isolinux syslinux-common syslinux-efi grub-pc-bin grub-efi-amd64-bin \\\\"
+  echo "      mtools dosfstools"
   exit 1
 fi
 
-mkdir -p "\${OUT_DIR}"
-rm -rf "\${WORK_DIR}"
+echo "==> Cleaning previous build..."
+lb clean --purge || true
 
-echo "==> Building ISO for ${cfg.distroName}..."
-mkarchiso -v -w "\${WORK_DIR}" -o "\${OUT_DIR}" "\${PROFILE_DIR}"
+echo "==> Configuring live-build..."
+chmod +x auto/config
+lb config
 
-echo ""
-echo "✓ Done! ISO is in: \${OUT_DIR}"
-ls -lh "\${OUT_DIR}"
+echo "==> Building ISO for ${cfg.distroName} (this takes 15-40 minutes)..."
+lb build 2>&1 | tee build.log
+
+ISO=\$(ls -1 *.iso 2>/dev/null | head -n1 || true)
+if [ -n "\$ISO" ]; then
+  NEW_NAME="${slug}-\$(date +%Y.%m.%d)-amd64.iso"
+  mv "\$ISO" "\$NEW_NAME"
+  echo ""
+  echo "✓ Done! ISO: \${PROFILE_DIR}/\$NEW_NAME"
+  ls -lh "\$NEW_NAME"
+else
+  echo "ERROR: no ISO produced — check build.log"
+  exit 1
+fi
 `;
 }
 
-function buildAirootfsCustomize(cfg: DistroBuildConfig): string {
-  const services = ["NetworkManager.service"];
-  if (["gnome"].includes(cfg.desktopEnvironment)) services.push("gdm.service");
-  else if (cfg.desktopEnvironment === "kde") services.push("sddm.service");
-  else services.push("lightdm.service");
+function buildReadme(cfg: DistroBuildConfig): string {
+  const slug = safeSlug(cfg.distroName);
+  return `# ${cfg.distroName} — Debian Live Build Bundle
 
-  return `#!/usr/bin/env bash
-set -e -u
+This bundle is a complete **\`live-build\`** configuration that produces a
+Debian-based live/install ISO matching your DistroForge configuration.
 
-# Enable services
-${services.map((s) => `systemctl enable ${s}`).join("\n")}
+## What's inside
 
-# Set default target to graphical
-systemctl set-default graphical.target
+- \`build.sh\` — one-command build entrypoint (run with sudo on any Debian-based host)
+- \`auto/config\` — \`lb config\` flags (Debian Bookworm, amd64, hybrid ISO)
+- \`config/package-lists/custom.list.chroot\` — every apt package to install
+- \`config/hooks/normal/9000-customize.hook.chroot\` — branding, services, third-party repos
+- \`config/includes.chroot/\` — files copied into the live system (wallpapers, os-release, etc.)
+- \`wallpapers/\` — your uploaded wallpapers (also baked into the ISO)
 
-# Default theme hint
-echo "${cfg.themeStyle}" > /etc/distro-theme
+## Build it
 
-# Install wallpapers (if any were bundled)
-if [ -d /usr/share/backgrounds/${safeSlug(cfg.distroName)} ]; then
-  echo "Wallpapers installed at /usr/share/backgrounds/${safeSlug(cfg.distroName)}"
-fi
+You can build on **Debian, Ubuntu, Linux Mint, MX, Pop!_OS, Kali**, or any
+Debian-derivative with root access (bare metal, VM, or container):
+
+\`\`\`bash
+sudo apt update
+sudo apt install -y live-build debootstrap squashfs-tools xorriso \\
+    isolinux syslinux-common syslinux-efi \\
+    grub-pc-bin grub-efi-amd64-bin mtools dosfstools
+
+unzip ${slug}-build.zip
+cd ${slug}-build
+sudo ./build.sh
+\`\`\`
+
+The output \`${slug}-YYYY.MM.DD-amd64.iso\` is a hybrid ISO — flash with
+\`dd\`, \`balenaEtcher\`, \`Ventoy\`, or \`Rufus\`.
+
+## Configuration summary
+
+- **Base:** Debian 12 (Bookworm), amd64, hybrid BIOS+UEFI
+- **Desktop environment:** ${cfg.desktopEnvironment}
+- **Theme style:** ${cfg.themeStyle}
+- **Apps:** ${cfg.selectedApps.join(", ") || "(none)"}
+- **Wallpapers:** ${cfg.wallpaperUrls.length}
+${cfg.designDescription ? `\n**Design notes:**\n> ${cfg.designDescription}\n` : ""}
+---
+Generated by Lovable DistroForge.
 `;
 }
 
@@ -176,47 +290,9 @@ function buildOsRelease(cfg: DistroBuildConfig): string {
   return `NAME="${cfg.distroName}"
 PRETTY_NAME="${cfg.distroName}"
 ID=${slug}
-ID_LIKE=arch
-BUILD_ID=rolling
+ID_LIKE=debian
+VERSION_ID="1"
 HOME_URL="https://lovable.dev"
-`;
-}
-
-function buildReadme(cfg: DistroBuildConfig): string {
-  return `# ${cfg.distroName} — Build Bundle
-
-This bundle contains an **archiso** profile for building a custom Arch Linux–based
-live/install ISO matching your configuration.
-
-## What's inside
-
-- \`build.sh\` — one-command build entrypoint (run with sudo on Arch Linux)
-- \`profiledef.sh\` — archiso profile definition
-- \`packages.x86_64\` — package list (base + ${cfg.desktopEnvironment} + your selected apps)
-- \`pacman.conf\` — pacman config used during build
-- \`airootfs/\` — files copied into the live system
-- \`wallpapers/\` — your uploaded wallpapers (also bundled into the ISO)
-
-## Build it
-
-You need an **Arch Linux** machine (or VM/container) with root access:
-
-\`\`\`bash
-sudo pacman -S archiso squashfs-tools libisoburn
-sudo ./build.sh
-\`\`\`
-
-The output ISO will appear in \`./out/\`. Flash it with \`dd\` or use Ventoy/Etcher.
-
-## Configuration summary
-
-- **Desktop environment:** ${cfg.desktopEnvironment}
-- **Theme style:** ${cfg.themeStyle}
-- **Apps:** ${cfg.selectedApps.join(", ") || "(none)"}
-- **Wallpapers:** ${cfg.wallpaperUrls.length}
-${cfg.designDescription ? `\n**Design notes:**\n> ${cfg.designDescription}\n` : ""}
----
-Generated by Lovable Distro Builder.
 `;
 }
 
@@ -235,40 +311,48 @@ export async function generateBuildBundle(cfg: DistroBuildConfig): Promise<Blob>
   const zip = new JSZip();
   const root = zip.folder(`${slug}-build`)!;
 
+  // Top-level files
   root.file("build.sh", buildBuildScript(cfg), { unixPermissions: 0o755 });
-  root.file("profiledef.sh", buildProfileDef(cfg), { unixPermissions: 0o755 });
-  root.file("packages.x86_64", buildPackagesFile(cfg));
-  root.file("pacman.conf", buildPacmanConf());
-  root.file("os-release", buildOsRelease(cfg));
   root.file("README.md", buildReadme(cfg));
 
-  const airootfs = root.folder("airootfs")!;
-  const customize = airootfs.folder("root")!;
-  customize.file("customize_airootfs.sh", buildAirootfsCustomize(cfg), { unixPermissions: 0o755 });
+  // auto/config — the lb config invocation
+  const auto = root.folder("auto")!;
+  auto.file("config", buildAutoConfig(cfg), { unixPermissions: 0o755 });
 
-  // os-release into the live system too
-  const etc = airootfs.folder("etc")!;
-  etc.file("os-release", buildOsRelease(cfg));
+  // config/package-lists/custom.list.chroot
+  const pkgLists = root.folder("config/package-lists")!;
+  pkgLists.file("custom.list.chroot", buildPackagesListFile(cfg));
 
-  // Wallpapers: download from signed URLs and bundle
+  // config/hooks/normal/9000-customize.hook.chroot
+  const hooks = root.folder("config/hooks/normal")!;
+  hooks.file("9000-customize.hook.chroot", buildHookCustomize(cfg), { unixPermissions: 0o755 });
+
+  // config/includes.chroot — files copied into the live root filesystem
+  const includes = root.folder("config/includes.chroot")!;
+  includes.folder("etc")!.file("os-release", buildOsRelease(cfg));
+
+  // Wallpapers: download from signed URLs and bundle into the ISO
   if (cfg.wallpaperUrls.length > 0) {
-    const wpFolder = airootfs.folder(`usr/share/backgrounds/${slug}`)!;
-    const localFolder = root.folder("wallpapers")!;
+    const wpInIso = includes.folder(`usr/share/backgrounds/${slug}`)!;
+    const wpLocal = root.folder("wallpapers")!;
     let i = 0;
     for (const url of cfg.wallpaperUrls) {
       const blob = await fetchAsBlob(url);
       if (!blob) continue;
-      // best-effort extension
       const extMatch = url.match(/\.(png|jpe?g|webp|gif|bmp)/i);
       const ext = (extMatch?.[1] ?? "jpg").toLowerCase();
       const name = `wallpaper-${++i}.${ext}`;
       const buf = await blob.arrayBuffer();
-      wpFolder.file(name, buf);
-      localFolder.file(name, buf);
+      wpInIso.file(name, buf);
+      wpLocal.file(name, buf);
     }
   }
 
-  return await zip.generateAsync({ type: "blob", compression: "DEFLATE", compressionOptions: { level: 6 } });
+  return await zip.generateAsync({
+    type: "blob",
+    compression: "DEFLATE",
+    compressionOptions: { level: 6 },
+  });
 }
 
 export function downloadBlob(blob: Blob, filename: string) {
