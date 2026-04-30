@@ -275,18 +275,29 @@ fi
 
 function buildReadme(cfg: DistroBuildConfig): string {
   const slug = safeSlug(cfg.distroName);
-  return `# ${cfg.distroName} — Debian Live Build Bundle
+  return `# ${cfg.distroName} — Debian Installer ISO Build Bundle
 
 This bundle is a complete **\`live-build\`** configuration that produces a
-Debian-based live/install ISO matching your DistroForge configuration.
+Debian-based **installer ISO** matching your DistroForge configuration.
+
+When the ISO boots, the user gets a boot menu with:
+
+1. **Live** — try ${cfg.distroName} without installing
+2. **Graphical Install** — install ${cfg.distroName} to disk (recommended)
+3. **Install** — text-mode installer
+
+The installer copies the customized live filesystem (your DE, apps, branding,
+wallpapers) onto the target disk and installs GRUB. The end result is a real,
+disk-installed OS — not just a live session.
 
 ## What's inside
 
 - \`build.sh\` — one-command build entrypoint (run with sudo on any Debian-based host)
-- \`auto/config\` — \`lb config\` flags (Debian Bookworm, amd64, hybrid ISO)
+- \`auto/config\` — \`lb config\` flags (Debian Bookworm, amd64, hybrid ISO, d-i live)
 - \`config/package-lists/custom.list.chroot\` — every apt package to install
 - \`config/hooks/normal/9000-customize.hook.chroot\` — branding, services, third-party repos
-- \`config/includes.chroot/\` — files copied into the live system (wallpapers, os-release, etc.)
+- \`config/includes.chroot/\` — files copied into the installed system (wallpapers, os-release)
+- \`config/includes.installer/preseed.cfg\` — installer defaults (locale, timezone, hostname)
 - \`wallpapers/\` — your uploaded wallpapers (also baked into the ISO)
 
 ## Build it
@@ -299,18 +310,19 @@ sudo apt update
 sudo apt install -y live-build debootstrap squashfs-tools xorriso \\
     isolinux syslinux-common syslinux-efi \\
     grub-pc-bin grub-efi-amd64-bin mtools dosfstools
-
+    
 unzip ${slug}-build.zip
 cd ${slug}-build
 sudo ./build.sh
 \`\`\`
 
-The output \`${slug}-YYYY.MM.DD-amd64.iso\` is a hybrid ISO — flash with
-\`dd\`, \`balenaEtcher\`, \`Ventoy\`, or \`Rufus\`.
+The output \`${slug}-YYYY.MM.DD-amd64.iso\` is a hybrid installer ISO — flash
+with \`dd\`, \`balenaEtcher\`, \`Ventoy\`, or \`Rufus\`, then boot the target
+machine and pick **Graphical Install**.
 
 ## Configuration summary
 
-- **Base:** Debian 12 (Bookworm), amd64, hybrid BIOS+UEFI
+- **Base:** Debian 12 (Bookworm), amd64, hybrid BIOS+UEFI installer
 - **Desktop environment:** ${cfg.desktopEnvironment}
 - **Theme style:** ${cfg.themeStyle}
 - **Apps:** ${cfg.selectedApps.join(", ") || "(none)"}
