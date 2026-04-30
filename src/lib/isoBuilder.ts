@@ -10,13 +10,15 @@ export interface DistroBuildConfig {
 }
 
 /**
- * Debian live-build based ISO builder.
+ * Debian live-build based INSTALLER ISO builder.
  *
  * Produces a bundle of `live-build` config files + a `build.sh` wrapper.
  * Runs on any Debian / Ubuntu / Debian-derivative host with `live-build` installed.
  *
- * Output ISO is a hybrid (BIOS + UEFI) bootable Debian live image preloaded
- * with the chosen desktop environment, apps, wallpapers, and branding.
+ * Output ISO is a hybrid (BIOS + UEFI) bootable image with the Debian Installer
+ * (graphical + text) included. Booting the ISO lets the end user INSTALL the
+ * customized OS to disk — it is not just a live session. The live system is
+ * still present as a recovery / try-before-install mode.
  */
 
 // DE -> Debian package list
@@ -73,6 +75,10 @@ function packageList(cfg: DistroBuildConfig): string[] {
     "keyboard-configuration",
     "firmware-linux-free",
     "task-laptop",
+    // Required so the installed system is bootable after Debian Installer copies the live fs to disk
+    "grub-pc",
+    "grub-efi-amd64",
+    "os-prober",
   ];
   const de = DE_PACKAGES[cfg.desktopEnvironment] ?? DE_PACKAGES.xfce;
   const apps = cfg.selectedApps
@@ -88,7 +94,10 @@ function buildPackagesListFile(cfg: DistroBuildConfig): string {
 
 function buildAutoConfig(cfg: DistroBuildConfig): string {
   const slug = safeSlug(cfg.distroName);
-  // config/auto/config — runs `lb config` with our desired flags
+  // config/auto/config — runs `lb config` with our desired flags.
+  // --debian-installer live  => embeds the Debian Installer (graphical + text)
+  //                              that installs the live filesystem to disk.
+  // --debian-installer-gui true => enables the graphical installer entry.
   return `#!/bin/sh
 set -e
 
@@ -100,13 +109,40 @@ lb config noauto \\
   --archive-areas "main contrib non-free non-free-firmware" \\
   --apt-indices false \\
   --apt-recommends true \\
-  --debian-installer false \\
+  --debian-installer live \\
+  --debian-installer-gui true \\
+  --debian-installer-distribution bookworm \\
   --bootloaders "syslinux,grub-efi" \\
   --iso-application "${cfg.distroName}" \\
   --iso-publisher "${cfg.distroName} (built with Lovable DistroForge)" \\
   --iso-volume "${slug.toUpperCase().replace(/-/g, "_")}" \\
   --memtest none \\
   "\${@}"
+`;
+}
+
+function buildPreseed(cfg: DistroBuildConfig): string {
+  const slug = safeSlug(cfg.distroName);
+  // Sensible defaults; user is still prompted for partitioning, user account, etc.
+  return `# Preseed for ${cfg.distroName}
+# Placed at config/includes.installer/preseed.cfg
+d-i debian-installer/locale string en_US.UTF-8
+d-i keyboard-configuration/xkb-keymap select us
+d-i netcfg/choose_interface select auto
+d-i netcfg/get_hostname string ${slug}
+d-i netcfg/get_domain string local
+d-i mirror/country string manual
+d-i mirror/http/hostname string deb.debian.org
+d-i mirror/http/directory string /debian
+d-i clock-setup/utc boolean true
+d-i time/zone string UTC
+d-i clock-setup/ntp boolean true
+tasksel tasksel/first multiselect standard
+d-i pkgsel/upgrade select full-upgrade
+popularity-contest popularity-contest/participate boolean false
+d-i grub-installer/only_debian boolean true
+d-i grub-installer/with_other_os boolean true
+d-i finish-install/reboot_in_progress note
 `;
 }
 
@@ -239,18 +275,29 @@ fi
 
 function buildReadme(cfg: DistroBuildConfig): string {
   const slug = safeSlug(cfg.distroName);
-  return `# ${cfg.distroName} — Debian Live Build Bundle
+  return `# ${cfg.distroName} — Debian Installer ISO Build Bundle
 
 This bundle is a complete **\`live-build\`** configuration that produces a
-Debian-based live/install ISO matching your DistroForge configuration.
+Debian-based **installer ISO** matching your DistroForge configuration.
+
+When the ISO boots, the user gets a boot menu with:
+
+1. **Live** — try ${cfg.distroName} without installing
+2. **Graphical Install** — install ${cfg.distroName} to disk (recommended)
+3. **Install** — text-mode installer
+
+The installer copies the customized live filesystem (your DE, apps, branding,
+wallpapers) onto the target disk and installs GRUB. The end result is a real,
+disk-installed OS — not just a live session.
 
 ## What's inside
 
 - \`build.sh\` — one-command build entrypoint (run with sudo on any Debian-based host)
-- \`auto/config\` — \`lb config\` flags (Debian Bookworm, amd64, hybrid ISO)
+- \`auto/config\` — \`lb config\` flags (Debian Bookworm, amd64, hybrid ISO, d-i live)
 - \`config/package-lists/custom.list.chroot\` — every apt package to install
 - \`config/hooks/normal/9000-customize.hook.chroot\` — branding, services, third-party repos
-- \`config/includes.chroot/\` — files copied into the live system (wallpapers, os-release, etc.)
+- \`config/includes.chroot/\` — files copied into the installed system (wallpapers, os-release)
+- \`config/includes.installer/preseed.cfg\` — installer defaults (locale, timezone, hostname)
 - \`wallpapers/\` — your uploaded wallpapers (also baked into the ISO)
 
 ## Build it
@@ -263,18 +310,19 @@ sudo apt update
 sudo apt install -y live-build debootstrap squashfs-tools xorriso \\
     isolinux syslinux-common syslinux-efi \\
     grub-pc-bin grub-efi-amd64-bin mtools dosfstools
-
+    
 unzip ${slug}-build.zip
 cd ${slug}-build
 sudo ./build.sh
 \`\`\`
 
-The output \`${slug}-YYYY.MM.DD-amd64.iso\` is a hybrid ISO — flash with
-\`dd\`, \`balenaEtcher\`, \`Ventoy\`, or \`Rufus\`.
+The output \`${slug}-YYYY.MM.DD-amd64.iso\` is a hybrid installer ISO — flash
+with \`dd\`, \`balenaEtcher\`, \`Ventoy\`, or \`Rufus\`, then boot the target
+machine and pick **Graphical Install**.
 
 ## Configuration summary
 
-- **Base:** Debian 12 (Bookworm), amd64, hybrid BIOS+UEFI
+- **Base:** Debian 12 (Bookworm), amd64, hybrid BIOS+UEFI installer
 - **Desktop environment:** ${cfg.desktopEnvironment}
 - **Theme style:** ${cfg.themeStyle}
 - **Apps:** ${cfg.selectedApps.join(", ") || "(none)"}
@@ -330,6 +378,10 @@ export async function generateBuildBundle(cfg: DistroBuildConfig): Promise<Blob>
   // config/includes.chroot — files copied into the live root filesystem
   const includes = root.folder("config/includes.chroot")!;
   includes.folder("etc")!.file("os-release", buildOsRelease(cfg));
+
+  // config/includes.installer — files copied alongside the Debian Installer on the ISO
+  const installer = root.folder("config/includes.installer")!;
+  installer.file("preseed.cfg", buildPreseed(cfg));
 
   // Wallpapers: download from signed URLs and bundle into the ISO
   if (cfg.wallpaperUrls.length > 0) {
