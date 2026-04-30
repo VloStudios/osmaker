@@ -367,6 +367,10 @@ export async function generateBuildBundle(cfg: DistroBuildConfig): Promise<Blob>
   const includes = root.folder("config/includes.chroot")!;
   includes.folder("etc")!.file("os-release", buildOsRelease(cfg));
 
+  // config/includes.installer — files copied alongside the Debian Installer on the ISO
+  const installer = root.folder("config/includes.installer")!;
+  installer.file("preseed.cfg", buildPreseed(cfg));
+
   // Wallpapers: download from signed URLs and bundle into the ISO
   if (cfg.wallpaperUrls.length > 0) {
     const wpInIso = includes.folder(`usr/share/backgrounds/${slug}`)!;
