@@ -10,13 +10,15 @@ export interface DistroBuildConfig {
 }
 
 /**
- * Debian live-build based ISO builder.
+ * Debian live-build based INSTALLER ISO builder.
  *
  * Produces a bundle of `live-build` config files + a `build.sh` wrapper.
  * Runs on any Debian / Ubuntu / Debian-derivative host with `live-build` installed.
  *
- * Output ISO is a hybrid (BIOS + UEFI) bootable Debian live image preloaded
- * with the chosen desktop environment, apps, wallpapers, and branding.
+ * Output ISO is a hybrid (BIOS + UEFI) bootable image with the Debian Installer
+ * (graphical + text) included. Booting the ISO lets the end user INSTALL the
+ * customized OS to disk — it is not just a live session. The live system is
+ * still present as a recovery / try-before-install mode.
  */
 
 // DE -> Debian package list
