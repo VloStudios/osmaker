@@ -90,7 +90,10 @@ function buildPackagesListFile(cfg: DistroBuildConfig): string {
 
 function buildAutoConfig(cfg: DistroBuildConfig): string {
   const slug = safeSlug(cfg.distroName);
-  // config/auto/config — runs `lb config` with our desired flags
+  // config/auto/config — runs `lb config` with our desired flags.
+  // --debian-installer live  => embeds the Debian Installer (graphical + text)
+  //                              that installs the live filesystem to disk.
+  // --debian-installer-gui true => enables the graphical installer entry.
   return `#!/bin/sh
 set -e
 
@@ -102,13 +105,40 @@ lb config noauto \\
   --archive-areas "main contrib non-free non-free-firmware" \\
   --apt-indices false \\
   --apt-recommends true \\
-  --debian-installer false \\
+  --debian-installer live \\
+  --debian-installer-gui true \\
+  --debian-installer-distribution bookworm \\
   --bootloaders "syslinux,grub-efi" \\
   --iso-application "${cfg.distroName}" \\
   --iso-publisher "${cfg.distroName} (built with Lovable DistroForge)" \\
   --iso-volume "${slug.toUpperCase().replace(/-/g, "_")}" \\
   --memtest none \\
   "\${@}"
+`;
+}
+
+function buildPreseed(cfg: DistroBuildConfig): string {
+  const slug = safeSlug(cfg.distroName);
+  // Sensible defaults; user is still prompted for partitioning, user account, etc.
+  return `# Preseed for ${cfg.distroName}
+# Placed at config/includes.installer/preseed.cfg
+d-i debian-installer/locale string en_US.UTF-8
+d-i keyboard-configuration/xkb-keymap select us
+d-i netcfg/choose_interface select auto
+d-i netcfg/get_hostname string ${slug}
+d-i netcfg/get_domain string local
+d-i mirror/country string manual
+d-i mirror/http/hostname string deb.debian.org
+d-i mirror/http/directory string /debian
+d-i clock-setup/utc boolean true
+d-i time/zone string UTC
+d-i clock-setup/ntp boolean true
+tasksel tasksel/first multiselect standard
+d-i pkgsel/upgrade select full-upgrade
+popularity-contest popularity-contest/participate boolean false
+d-i grub-installer/only_debian boolean true
+d-i grub-installer/with_other_os boolean true
+d-i finish-install/reboot_in_progress note
 `;
 }
 
