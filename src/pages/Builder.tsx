@@ -143,7 +143,8 @@ export default function Builder() {
     if (!user) return;
     setSaving(true);
     try {
-      const { error } = await supabase.from("distro_configs").insert({
+      // Persist the config (best-effort; don't block download if it fails)
+      const { error: dbError } = await supabase.from("distro_configs").insert({
         user_id: user.id,
         name: distroName,
         desktop_environment: de,
@@ -151,14 +152,28 @@ export default function Builder() {
         wallpaper_urls: wallpaperUrls,
         design_description: designDesc,
         theme_style: themeStyle,
-        status: "building",
+        status: "exported",
       });
-      if (error) throw error;
-      toast.success("Build queued! Your ISO will be ready soon.", {
-        description: "In a production environment, this would trigger an ISO build pipeline.",
+      if (dbError) console.warn("Save failed:", dbError.message);
+
+      toast.info("Generating build bundle...", { description: "Packaging archiso profile + wallpapers" });
+
+      const blob = await generateBuildBundle({
+        distroName,
+        desktopEnvironment: de,
+        selectedApps,
+        wallpaperUrls,
+        designDescription: designDesc,
+        themeStyle,
+      });
+
+      downloadBlob(blob, bundleFilename(distroName));
+
+      toast.success("Build bundle downloaded!", {
+        description: "Unzip it on Arch Linux and run: sudo ./build.sh",
       });
     } catch (err: any) {
-      toast.error(err.message || "Failed to save configuration");
+      toast.error(err.message || "Failed to generate bundle");
     } finally {
       setSaving(false);
     }
