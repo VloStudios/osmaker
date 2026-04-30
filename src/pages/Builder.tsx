@@ -156,7 +156,7 @@ export default function Builder() {
       });
       if (dbError) console.warn("Save failed:", dbError.message);
 
-      toast.info("Generating build bundle...", { description: "Packaging archiso profile + wallpapers" });
+      toast.info("Generating build bundle...", { description: "Packaging Debian live-build config + wallpapers" });
 
       const blob = await generateBuildBundle({
         distroName,
@@ -170,7 +170,7 @@ export default function Builder() {
       downloadBlob(blob, bundleFilename(distroName));
 
       toast.success("Build bundle downloaded!", {
-        description: "Unzip it on Arch Linux and run: sudo ./build.sh",
+        description: "Unzip it on any Debian-based system and run: sudo ./build.sh",
       });
     } catch (err: any) {
       toast.error(err.message || "Failed to generate bundle");
@@ -396,20 +396,25 @@ export default function Builder() {
                   <p className="font-semibold text-foreground">📦 What you'll download</p>
                   <p className="text-muted-foreground">
                     A <code className="text-primary">.zip</code> bundle containing a complete{" "}
-                    <code className="text-primary">archiso</code> profile, your wallpapers, and a{" "}
-                    <code className="text-primary">build.sh</code> script.
+                    <code className="text-primary">live-build</code> config (Debian 12 Bookworm),
+                    your wallpapers, branding hooks, and a <code className="text-primary">build.sh</code> script.
                   </p>
                   <p className="font-semibold text-foreground pt-2">🛠 To produce the actual .iso</p>
-                  <p className="text-muted-foreground">On any Arch Linux machine (or VM/container):</p>
+                  <p className="text-muted-foreground">
+                    On any <strong>Debian-based</strong> system (Debian, Ubuntu, Mint, MX, Pop!_OS, Kali…):
+                  </p>
                   <pre className="bg-background/60 rounded p-2 text-xs overflow-x-auto">
-{`unzip ${distroName.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-build.zip
+{`sudo apt install -y live-build debootstrap squashfs-tools xorriso \\
+    isolinux syslinux-common syslinux-efi \\
+    grub-pc-bin grub-efi-amd64-bin mtools dosfstools
+
+unzip ${distroName.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-build.zip
 cd ${distroName.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-build
-sudo pacman -S archiso
 sudo ./build.sh
-# → ISO appears in ./out/`}
+# → hybrid BIOS+UEFI ISO appears in the same folder`}
                   </pre>
                   <p className="text-xs text-muted-foreground">
-                    Browser sandboxes can't run <code>mkarchiso</code> (needs root + loop devices),
+                    Browser sandboxes can't run <code>live-build</code> (needs root + loop devices + debootstrap),
                     so the heavy lifting happens on your machine — but every config decision is baked in.
                   </p>
                 </div>
