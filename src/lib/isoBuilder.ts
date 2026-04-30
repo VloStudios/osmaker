@@ -75,6 +75,10 @@ function packageList(cfg: DistroBuildConfig): string[] {
     "keyboard-configuration",
     "firmware-linux-free",
     "task-laptop",
+    // Required so the installed system is bootable after Debian Installer copies the live fs to disk
+    "grub-pc",
+    "grub-efi-amd64",
+    "os-prober",
   ];
   const de = DE_PACKAGES[cfg.desktopEnvironment] ?? DE_PACKAGES.xfce;
   const apps = cfg.selectedApps
