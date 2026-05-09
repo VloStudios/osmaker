@@ -47,7 +47,7 @@ export default function Index() {
           <h1 className="font-display text-5xl sm:text-7xl font-bold leading-tight mb-6">
             <span className="text-foreground">Build Your</span>
             <br />
-            <span className="text-primary glow-text text-orange-600 bg-slate-950 font-sans">Dream Distro</span>
+            <span className="text-primary glow-text text-orange-600 font-sans">Dream Distro</span>
           </h1>
 
           <p className="text-lg sm:text-xl text-muted-foreground max-w-2xl mx-auto mb-10 font-light">
@@ -90,7 +90,7 @@ export default function Index() {
             viewport={{ once: true }}
             className="font-display text-3xl sm:text-4xl font-bold text-center mb-16"
           >
-            How It <span className="text-primary glow-text text-orange-600 bg-slate-950 font-sans">Works</span>
+            How It <span className="text-primary glow-text text-orange-600 font-sans">Works</span>
           </motion.h2>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -117,7 +117,7 @@ export default function Index() {
         <div className="container mx-auto max-w-2xl text-center">
           <div className="rounded-2xl border border-primary/20 bg-card/80 p-12 backdrop-blur-sm glow-box">
             <h2 className="font-display text-3xl font-bold mb-4">
-              Ready to <span className="text-primary glow-text text-orange-600 bg-slate-950 font-sans">Forge</span>?
+              Ready to <span className="text-primary glow-text text-orange-600 font-sans">Forge</span>?
             </h2>
             <p className="text-muted-foreground mb-8">
               Create your account and start building your perfect Linux distro in minutes.
