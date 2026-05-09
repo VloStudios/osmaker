@@ -14,9 +14,10 @@ export default {
     },
     extend: {
       fontFamily: {
-        display: ['"Space Grotesk"', 'sans-serif'],
-        body: ['"Space Grotesk"', 'sans-serif'],
-        mono: ['"JetBrains Mono"', 'monospace'],
+        display: ['"Yusei Magic"', '"Zen Maru Gothic"', 'sans-serif'],
+        body: ['"Zen Kaku Gothic New"', 'sans-serif'],
+        serif: ['"Shippori Mincho"', 'serif'],
+        mono: ['"Zen Kaku Gothic New"', 'monospace'],
       },
       colors: {
         border: "hsl(var(--border))",
@@ -54,6 +55,11 @@ export default {
         },
         glow: "hsl(var(--glow))",
         terminal: "hsl(var(--terminal))",
+        sakura: "hsl(var(--sakura))",
+        sora: "hsl(var(--sora))",
+        matcha: "hsl(var(--matcha))",
+        sumi: "hsl(var(--sumi))",
+        gold: "hsl(var(--gold))",
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
           foreground: "hsl(var(--sidebar-foreground))",
