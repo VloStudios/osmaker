@@ -95,7 +95,7 @@ export default function Analytics() {
     <div className="min-h-screen pt-20 pb-12 px-4">
       <div className="container mx-auto max-w-6xl">
         <h1 className="font-display text-3xl font-bold mb-8">
-          <span className="text-primary glow-text">Analytics</span> Dashboard
+          <span className="text-primary glow-text text-orange-600 bg-slate-950 font-sans">Analytics</span> Dashboard
         </h1>
 
         {/* Stat cards */}

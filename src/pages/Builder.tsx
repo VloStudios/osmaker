@@ -381,7 +381,7 @@ export default function Builder() {
             {step === 4 && (
               <div className="space-y-6 text-center">
                 <h2 className="font-display text-2xl font-bold">
-                  Build Your <span className="text-primary glow-text">.ISO</span>
+                  Build Your <span className="text-primary glow-text text-orange-600 bg-slate-950 font-sans">.ISO</span>
                 </h2>
                 <div className="rounded-xl border border-border bg-muted p-6 text-left font-mono text-sm space-y-1">
                   <p><span className="text-primary">distro_name:</span> {distroName}</p>
