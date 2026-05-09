@@ -29,15 +29,17 @@ export function Navbar() {
                 <LayoutDashboard className="mr-2 h-4 w-4" />
                 Builder
               </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-muted-foreground hover:text-primary"
-                onClick={() => navigate("/analytics")}
-              >
-                <Shield className="mr-2 h-4 w-4" />
-                Analytics
-              </Button>
+              {user.email !== "example@exampledevstuff.com" && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-muted-foreground hover:text-primary"
+                  onClick={() => navigate("/analytics")}
+                >
+                  <Shield className="mr-2 h-4 w-4" />
+                  Analytics
+                </Button>
+              )}
               <Button
                 variant="outline"
                 size="sm"
