@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/lib/auth";
 import { Navbar } from "@/components/Navbar";
+import { SakuraPetals } from "@/components/SakuraPetals";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Builder from "./pages/Builder";
@@ -20,6 +21,7 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AuthProvider>
+          <SakuraPetals />
           <Navbar />
           <Routes>
             <Route path="/" element={<Index />} />

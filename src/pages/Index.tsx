@@ -2,7 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Terminal, Cpu, Shield, Layers, Zap, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { MatrixRain } from "@/components/MatrixRain";
+
 import heroBg from "@/assets/hero-bg.jpg";
 
 const features = [
@@ -19,7 +19,7 @@ export default function Index() {
 
   return (
     <div className="relative min-h-screen overflow-hidden">
-      <MatrixRain />
+      
 
       {/* Hero */}
       <section className="relative z-10 flex min-h-screen flex-col items-center justify-center px-4">
