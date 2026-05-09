@@ -158,19 +158,23 @@
 
   /* Falling sakura petals overlay */
   @keyframes petal-fall {
-    0% { transform: translateY(-10vh) translateX(0) rotate(0deg); opacity: 0; }
-    10% { opacity: 1; }
-    100% { transform: translateY(110vh) translateX(60px) rotate(540deg); opacity: 0; }
+    0%   { transform: translateY(-10vh) translateX(0) rotate(var(--rot, 0deg)); }
+    100% { transform: translateY(110vh) translateX(var(--drift, 80px)) rotate(calc(var(--rot, 0deg) + 720deg)); }
   }
-  .petal {
-    position: fixed;
-    top: -5vh;
-    width: 14px; height: 14px;
-    background: radial-gradient(circle at 30% 30%, hsl(340 100% 88%), hsl(340 80% 70%));
-    border-radius: 80% 0 80% 0;
-    pointer-events: none;
-    z-index: 5;
-    animation: petal-fall linear infinite;
-    opacity: .8;
+  @keyframes petal-sway {
+    0%, 100% { margin-left: -14px; }
+    50%      { margin-left: 14px; }
+  }
+  .sakura-petal {
+    position: absolute;
+    top: -8vh;
+    display: block;
+    border-radius: 80% 0 80% 0 / 90% 0 90% 0;
+    box-shadow: inset -2px -2px 4px hsl(340 60% 65% / 0.6);
+    filter: drop-shadow(0 2px 3px hsl(340 70% 60% / 0.25));
+    will-change: transform, margin-left;
+    animation-name: petal-fall, petal-sway;
+    animation-timing-function: linear, ease-in-out;
+    animation-iteration-count: infinite, infinite;
   }
 }
