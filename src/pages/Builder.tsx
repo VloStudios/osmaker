@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import {
   Monitor, Package, Image, Paintbrush, Download, ChevronRight, ChevronLeft,
-  Check, Upload, X, Terminal
+  Check, Upload, X, Terminal, Cpu
 } from "lucide-react";
 
 const STEPS = [
@@ -19,7 +19,14 @@ const STEPS = [
   { id: "apps", label: "Apps", icon: Package },
   { id: "wallpaper", label: "Wallpaper", icon: Image },
   { id: "design", label: "Design", icon: Paintbrush },
+  { id: "firmware", label: "Firmware", icon: Cpu },
   { id: "export", label: "Export", icon: Download },
+];
+
+const FIRMWARE_OPTIONS: { id: "bios" | "uefi" | "both"; name: string; desc: string }[] = [
+  { id: "uefi", name: "UEFI only", desc: "Modern PCs (2012+). Recommended for most users." },
+  { id: "bios", name: "Legacy BIOS only", desc: "Older PCs without UEFI firmware." },
+  { id: "both", name: "Hybrid (BIOS + UEFI)", desc: "Boots on either; installer picks at install time." },
 ];
 
 const DESKTOP_ENVS = [
