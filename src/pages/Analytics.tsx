@@ -20,11 +20,8 @@ export default function Analytics() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const BLOCKED_EMAILS = ["example@exampledevstuff.com"];
-
   useEffect(() => {
     if (!authLoading && !user) navigate("/auth");
-    if (user && BLOCKED_EMAILS.includes(user.email ?? "")) navigate("/builder");
   }, [user, authLoading, navigate]);
 
   useEffect(() => {
