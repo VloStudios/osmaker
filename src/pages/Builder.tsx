@@ -100,6 +100,7 @@ export default function Builder() {
   const [uploading, setUploading] = useState(false);
   const [designDesc, setDesignDesc] = useState("");
   const [themeStyle, setThemeStyle] = useState("dark");
+  const [firmware, setFirmware] = useState<"bios" | "uefi" | "both">("uefi");
 
   useEffect(() => {
     if (!authLoading && !user) navigate("/auth");
