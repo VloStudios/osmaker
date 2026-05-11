@@ -173,6 +173,7 @@ export default function Builder() {
         wallpaperUrls,
         designDescription: designDesc,
         themeStyle,
+        firmware,
       });
 
       downloadBlob(blob, bundleFilename(distroName));
