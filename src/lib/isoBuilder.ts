@@ -1,5 +1,7 @@
 import JSZip from "jszip";
 
+export type FirmwareTarget = "bios" | "uefi" | "both";
+
 export interface DistroBuildConfig {
   distroName: string;
   desktopEnvironment: string;
@@ -7,6 +9,7 @@ export interface DistroBuildConfig {
   wallpaperUrls: string[];
   designDescription: string;
   themeStyle: string;
+  firmware: FirmwareTarget;
 }
 
 /**
