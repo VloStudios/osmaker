@@ -125,6 +125,26 @@ export default function Auth() {
             </Button>
           </form>
 
+          {!isSignup && (
+            <button
+              type="button"
+              onClick={async () => {
+                if (!email.trim()) {
+                  toast.error("Enter your email above first");
+                  return;
+                }
+                const { error } = await supabase.auth.resetPasswordForEmail(email, {
+                  redirectTo: `${window.location.origin}/reset-password`,
+                });
+                if (error) toast.error(error.message);
+                else toast.success("Password reset email sent — check your inbox");
+              }}
+              className="mt-3 block w-full text-center text-xs text-muted-foreground hover:text-primary"
+            >
+              Forgot your password?
+            </button>
+          )}
+
           <p className="mt-6 text-center text-sm text-muted-foreground">
             {isSignup ? "Already have an account?" : "Don't have an account?"}{" "}
             <button
