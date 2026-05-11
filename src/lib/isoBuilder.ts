@@ -78,11 +78,18 @@ function packageList(cfg: DistroBuildConfig): string[] {
     "keyboard-configuration",
     "firmware-linux-free",
     "task-laptop",
-    // Required so the installed system is bootable after Debian Installer copies the live fs to disk
-    "grub-pc",
-    "grub-efi-amd64",
     "os-prober",
+    "grub2-common",
   ];
+  // Choose grub flavor based on target firmware. grub-pc and grub-efi-amd64
+  // CONFLICT and cannot both be installed. For "both" we ship neither in the
+  // chroot — the Debian Installer picks the right one at install time based
+  // on the target machine's firmware.
+  if (cfg.firmware === "bios") {
+    base.push("grub-pc");
+  } else if (cfg.firmware === "uefi") {
+    base.push("grub-efi-amd64");
+  }
   const de = DE_PACKAGES[cfg.desktopEnvironment] ?? DE_PACKAGES.xfce;
   const apps = cfg.selectedApps
     .flatMap((id) => (APP_PACKAGES[id] ?? "").split(/\s+/))
