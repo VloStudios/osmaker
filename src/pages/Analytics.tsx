@@ -21,13 +21,17 @@ export default function Analytics() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!authLoading && !user) navigate("/auth");
+    if (authLoading) return;
+    if (!user) { navigate("/auth"); return; }
+    (async () => {
+      const { data, error } = await supabase.rpc("has_role", {
+        _user_id: user.id,
+        _role: "admin",
+      });
+      if (error || !data) { navigate("/"); return; }
+      loadStats();
+    })();
   }, [user, authLoading, navigate]);
-
-  useEffect(() => {
-    if (!user) return;
-    loadStats();
-  }, [user]);
 
   const loadStats = async () => {
     try {

@@ -1,11 +1,20 @@
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/lib/auth";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Terminal, LogOut, LayoutDashboard, Shield } from "lucide-react";
+import { Terminal, LogOut, LayoutDashboard, Shield, UserCircle } from "lucide-react";
 
 export function Navbar() {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    if (!user) { setIsAdmin(false); return; }
+    supabase.rpc("has_role", { _user_id: user.id, _role: "admin" })
+      .then(({ data }) => setIsAdmin(!!data));
+  }, [user]);
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 border-b border-border/50 bg-background/80 backdrop-blur-xl">
@@ -29,7 +38,7 @@ export function Navbar() {
                 <LayoutDashboard className="mr-2 h-4 w-4" />
                 Builder
               </Button>
-              {user.email !== "example@exampledevstuff.com" && (
+              {isAdmin && (
                 <Button
                   variant="ghost"
                   size="sm"
@@ -40,6 +49,15 @@ export function Navbar() {
                   Analytics
                 </Button>
               )}
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-muted-foreground hover:text-primary"
+                onClick={() => navigate("/account")}
+              >
+                <UserCircle className="mr-2 h-4 w-4" />
+                Account
+              </Button>
               <Button
                 variant="outline"
                 size="sm"
