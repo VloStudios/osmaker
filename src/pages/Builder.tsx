@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import {
   Monitor, Package, Image, Paintbrush, Download, ChevronRight, ChevronLeft,
-  Check, Upload, X, Terminal
+  Check, Upload, X, Terminal, Cpu
 } from "lucide-react";
 
 const STEPS = [
@@ -19,7 +19,14 @@ const STEPS = [
   { id: "apps", label: "Apps", icon: Package },
   { id: "wallpaper", label: "Wallpaper", icon: Image },
   { id: "design", label: "Design", icon: Paintbrush },
+  { id: "firmware", label: "Firmware", icon: Cpu },
   { id: "export", label: "Export", icon: Download },
+];
+
+const FIRMWARE_OPTIONS: { id: "bios" | "uefi" | "both"; name: string; desc: string }[] = [
+  { id: "uefi", name: "UEFI only", desc: "Modern PCs (2012+). Recommended for most users." },
+  { id: "bios", name: "Legacy BIOS only", desc: "Older PCs without UEFI firmware." },
+  { id: "both", name: "Hybrid (BIOS + UEFI)", desc: "Boots on either; installer picks at install time." },
 ];
 
 const DESKTOP_ENVS = [
@@ -93,6 +100,7 @@ export default function Builder() {
   const [uploading, setUploading] = useState(false);
   const [designDesc, setDesignDesc] = useState("");
   const [themeStyle, setThemeStyle] = useState("dark");
+  const [firmware, setFirmware] = useState<"bios" | "uefi" | "both">("uefi");
 
   useEffect(() => {
     if (!authLoading && !user) navigate("/auth");
@@ -165,6 +173,7 @@ export default function Builder() {
         wallpaperUrls,
         designDescription: designDesc,
         themeStyle,
+        firmware,
       });
 
       downloadBlob(blob, bundleFilename(distroName));
@@ -377,8 +386,38 @@ export default function Builder() {
               </div>
             )}
 
-            {/* Step 4: Export */}
+            {/* Step 4: Firmware */}
             {step === 4 && (
+              <div className="space-y-6">
+                <h2 className="font-display text-2xl font-bold">
+                  Boot <span className="text-primary">Firmware</span>
+                </h2>
+                <p className="text-sm text-muted-foreground">
+                  Pick the firmware your target machine uses. This avoids the{" "}
+                  <code className="text-primary">grub-pc</code> /{" "}
+                  <code className="text-primary">grub-efi-amd64</code> conflict during the build.
+                </p>
+                <div className="space-y-3">
+                  {FIRMWARE_OPTIONS.map((opt) => (
+                    <button
+                      key={opt.id}
+                      onClick={() => setFirmware(opt.id)}
+                      className={`w-full rounded-xl border p-4 text-left transition-all ${
+                        firmware === opt.id
+                          ? "border-primary bg-primary/10 glow-border"
+                          : "border-border bg-muted hover:border-primary/30"
+                      }`}
+                    >
+                      <p className="font-semibold text-foreground">{opt.name}</p>
+                      <p className="text-xs text-muted-foreground mt-1">{opt.desc}</p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Step 5: Export */}
+            {step === 5 && (
               <div className="space-y-6 text-center">
                 <h2 className="font-display text-2xl font-bold">
                   Build Your <span className="text-primary glow-text text-orange-600 font-sans">.ISO</span>
@@ -389,6 +428,7 @@ export default function Builder() {
                   <p><span className="text-primary">apps:</span> [{selectedApps.join(", ")}]</p>
                   <p><span className="text-primary">wallpapers:</span> {wallpaperUrls.length} uploaded</p>
                   <p><span className="text-primary">theme:</span> {themeStyle}</p>
+                  <p><span className="text-primary">firmware:</span> {firmware}</p>
                   {designDesc && <p><span className="text-primary">design:</span> "{designDesc.slice(0, 80)}..."</p>}
                 </div>
 

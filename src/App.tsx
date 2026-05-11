@@ -8,6 +8,7 @@ import { Navbar } from "@/components/Navbar";
 import { SakuraPetals } from "@/components/SakuraPetals";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
+import ResetPassword from "./pages/ResetPassword";
 import Builder from "./pages/Builder";
 import Analytics from "./pages/Analytics";
 import NotFound from "./pages/NotFound";
@@ -26,6 +27,7 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/auth" element={<Auth />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/builder" element={<Builder />} />
             <Route path="/analytics" element={<Analytics />} />
             <Route path="*" element={<NotFound />} />

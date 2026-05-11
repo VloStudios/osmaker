@@ -1,5 +1,7 @@
 import JSZip from "jszip";
 
+export type FirmwareTarget = "bios" | "uefi" | "both";
+
 export interface DistroBuildConfig {
   distroName: string;
   desktopEnvironment: string;
@@ -7,6 +9,7 @@ export interface DistroBuildConfig {
   wallpaperUrls: string[];
   designDescription: string;
   themeStyle: string;
+  firmware: FirmwareTarget;
 }
 
 /**
@@ -75,11 +78,18 @@ function packageList(cfg: DistroBuildConfig): string[] {
     "keyboard-configuration",
     "firmware-linux-free",
     "task-laptop",
-    // Required so the installed system is bootable after Debian Installer copies the live fs to disk
-    "grub-pc",
-    "grub-efi-amd64",
     "os-prober",
+    "grub2-common",
   ];
+  // Choose grub flavor based on target firmware. grub-pc and grub-efi-amd64
+  // CONFLICT and cannot both be installed. For "both" we ship neither in the
+  // chroot — the Debian Installer picks the right one at install time based
+  // on the target machine's firmware.
+  if (cfg.firmware === "bios") {
+    base.push("grub-pc");
+  } else if (cfg.firmware === "uefi") {
+    base.push("grub-efi-amd64");
+  }
   const de = DE_PACKAGES[cfg.desktopEnvironment] ?? DE_PACKAGES.xfce;
   const apps = cfg.selectedApps
     .flatMap((id) => (APP_PACKAGES[id] ?? "").split(/\s+/))
@@ -98,6 +108,10 @@ function buildAutoConfig(cfg: DistroBuildConfig): string {
   // --debian-installer live  => embeds the Debian Installer (graphical + text)
   //                              that installs the live filesystem to disk.
   // --debian-installer-gui true => enables the graphical installer entry.
+  const bootloaders =
+    cfg.firmware === "bios" ? "syslinux"
+    : cfg.firmware === "uefi" ? "grub-efi"
+    : "syslinux,grub-efi";
   return `#!/bin/sh
 set -e
 
@@ -112,7 +126,7 @@ lb config noauto \\
   --debian-installer live \\
   --debian-installer-gui true \\
   --debian-installer-distribution bookworm \\
-  --bootloaders "syslinux,grub-efi" \\
+  --bootloaders "${bootloaders}" \\
   --iso-application "${cfg.distroName}" \\
   --iso-publisher "${cfg.distroName} (built with Lovable DistroForge)" \\
   --iso-volume "${slug.toUpperCase().replace(/-/g, "_")}" \\
