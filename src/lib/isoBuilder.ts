@@ -108,6 +108,10 @@ function buildAutoConfig(cfg: DistroBuildConfig): string {
   // --debian-installer live  => embeds the Debian Installer (graphical + text)
   //                              that installs the live filesystem to disk.
   // --debian-installer-gui true => enables the graphical installer entry.
+  const bootloaders =
+    cfg.firmware === "bios" ? "syslinux"
+    : cfg.firmware === "uefi" ? "grub-efi"
+    : "syslinux,grub-efi";
   return `#!/bin/sh
 set -e
 
@@ -122,7 +126,7 @@ lb config noauto \\
   --debian-installer live \\
   --debian-installer-gui true \\
   --debian-installer-distribution bookworm \\
-  --bootloaders "syslinux,grub-efi" \\
+  --bootloaders "${bootloaders}" \\
   --iso-application "${cfg.distroName}" \\
   --iso-publisher "${cfg.distroName} (built with Lovable DistroForge)" \\
   --iso-volume "${slug.toUpperCase().replace(/-/g, "_")}" \\
