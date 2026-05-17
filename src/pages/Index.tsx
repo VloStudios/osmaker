@@ -135,8 +135,22 @@ export default function Index() {
 
       {/* Footer */}
       <footer className="relative z-10 border-t border-border/50 py-8 px-4">
-        <div className="container mx-auto text-center text-sm text-muted-foreground">
+        <div className="container mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-muted-foreground">
           <p>© 2026 DistroForge. Built with 💚 for the Linux community.</p>
+          <div className="flex items-center gap-4">
+            <button
+              className="hover:text-foreground transition-colors"
+              onClick={() => navigate("/tos")}
+            >
+              Terms
+            </button>
+            <button
+              className="hover:text-foreground transition-colors"
+              onClick={() => navigate("/privacy")}
+            >
+              Privacy
+            </button>
+          </div>
         </div>
       </footer>
     </div>

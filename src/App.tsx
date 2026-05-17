@@ -12,6 +12,8 @@ import ResetPassword from "./pages/ResetPassword";
 import Builder from "./pages/Builder";
 import Analytics from "./pages/Analytics";
 import Account from "./pages/Account";
+import TermsOfService from "./pages/TermsOfService";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -32,6 +34,8 @@ const App = () => (
             <Route path="/builder" element={<Builder />} />
             <Route path="/analytics" element={<Analytics />} />
             <Route path="/account" element={<Account />} />
+            <Route path="/tos" element={<TermsOfService />} />
+            <Route path="/privacy" element={<PrivacyPolicy />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>
